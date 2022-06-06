@@ -26,6 +26,7 @@ trait EntrustUserTrait
         $cacheKey = 'entrust_roles_for_user_'.$this->$userPrimaryKey;
         if(Cache::getStore() instanceof TaggableStore) {
             return Cache::tags(Config::get('entrust.role_user_table'))->remember($cacheKey, Config::get('cache.ttl'), function () {
+                var_dump($this->roles()->get());
                 return $this->roles()->get();
             });
         }
@@ -107,7 +108,7 @@ trait EntrustUserTrait
      */
     public function hasRole($name, $requireAll = false)
     {
-        var_dump('hasRole'); die();
+        var_dump('hasRole');
         if (is_array($name)) {
             foreach ($name as $roleName) {
                 $hasRole = $this->hasRole($roleName);
