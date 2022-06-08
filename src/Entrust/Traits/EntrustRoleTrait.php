@@ -14,6 +14,18 @@ use Illuminate\Support\Facades\Cache;
 
 trait EntrustRoleTrait
 {
+    public function getIdentifier()
+    {
+        $rolePrimaryKey = $this->primaryKey;
+        return $this->$rolePrimaryKey;
+    }
+
+    public function setIdentifier($identifier)
+    {
+        $rolePrimaryKey = $this->primaryKey;
+        $this->$rolePrimaryKey = $identifier;
+    }
+
     //Big block of caching functionality.
     public function cachedPermissions()
     {

@@ -9,12 +9,38 @@
  */
 
 use Illuminate\Cache\TaggableStore;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use InvalidArgumentException;
+use Zizaco\Entrust\EntrustRole;
 
 trait EntrustUserTrait
 {
+    private function encodeRoles(Collection $rolesCollection)
+    {
+        return json_encode($rolesCollection->map(function ($item) {
+            return [
+                $item->primaryKey => $item->getIdentifier(),
+                'name' => $item->name
+            ];
+        }));
+    }
+
+    private function decodeRoles($string)
+    {
+        $rolesAsArray = json_decode($string, true);
+        $roles = new Collection();
+        foreach ($rolesAsArray as $roleAsArray) {
+            $role = new EntrustRole();
+            $role->setIdentifier($roleAsArray[$role->primaryKey]);
+            $role->name = $roleAsArray['name'];
+            $roles[] = $role;
+        }
+
+        return $roles;
+    }
+
     /**
      * Big block of caching functionality.
      *
@@ -25,9 +51,11 @@ trait EntrustUserTrait
         $userPrimaryKey = $this->primaryKey;
         $cacheKey = 'entrust_roles_for_user_'.$this->$userPrimaryKey;
         if(Cache::getStore() instanceof TaggableStore) {
-            return Cache::tags(Config::get('entrust.role_user_table'))->remember($cacheKey, Config::get('cache.ttl'), function () {
-                return $this->roles()->get();
-            });
+            return $this->decodeRoles(
+                Cache::tags(Config::get('entrust.role_user_table'))->remember($cacheKey, Config::get('cache.ttl'), function () {
+                    return $this->encodeRoles($this->roles()->get());
+                })
+            );
         }
         else return $this->roles()->get();
     }
@@ -107,7 +135,6 @@ trait EntrustUserTrait
      */
     public function hasRole($name, $requireAll = false)
     {
-        var_dump('hasRole'); die();
         if (is_array($name)) {
             foreach ($name as $roleName) {
                 $hasRole = $this->hasRole($roleName);
