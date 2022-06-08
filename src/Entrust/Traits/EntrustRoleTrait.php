@@ -9,8 +9,10 @@
  */
 
 use Illuminate\Cache\TaggableStore;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Cache;
+use Zizaco\Entrust\EntrustPermission;
 
 trait EntrustRoleTrait
 {
@@ -26,15 +28,39 @@ trait EntrustRoleTrait
         $this->$rolePrimaryKey = $identifier;
     }
 
+    private function encodePermissions(Collection $permissionsCollection)
+    {
+        return json_encode($permissionsCollection->map(function ($item) {
+            return [
+                'name' => $item->name
+            ];
+        }));
+    }
+
+    private function decodePermissions($string)
+    {
+        $permissionsAsArray = json_decode($string, true);
+        $permissions = new Collection();
+        foreach ($permissionsAsArray as $permissionAsArray) {
+            $permission = new EntrustPermission();
+            $permission->name = $permissionAsArray['name'];
+            $permissions[] = $permission;
+        }
+
+        return $permissions;
+    }
+
     //Big block of caching functionality.
     public function cachedPermissions()
     {
         $rolePrimaryKey = $this->primaryKey;
         $cacheKey = 'entrust_permissions_for_role_' . $this->$rolePrimaryKey;
         if (Cache::getStore() instanceof TaggableStore) {
-            return Cache::tags(Config::get('entrust.permission_role_table'))->remember($cacheKey, Config::get('cache.ttl', 60), function () {
-                return $this->perms()->get();
-            });
+            return $this->decodePermissions(
+                Cache::tags(Config::get('entrust.permission_role_table'))->remember($cacheKey, Config::get('cache.ttl', 60), function () {
+                    return $this->encodePermissions($this->perms()->get());
+                })
+            );
         } else return $this->perms()->get();
     }
 
