@@ -17,6 +17,10 @@ use Zizaco\Entrust\EntrustRole;
 
 trait EntrustUserTrait
 {
+    /**
+     * @param Collection $rolesCollection
+     * @return false|string
+     */
     private function encodeRoles(Collection $rolesCollection)
     {
         return json_encode($rolesCollection->map(function ($item) {
@@ -27,6 +31,12 @@ trait EntrustUserTrait
         }));
     }
 
+    /**
+     * Decode roles from a string
+     *
+     * @param  string $string
+     * @return Collection
+     */
     private function decodeRoles($string)
     {
         $rolesAsArray = json_decode($string, true);
@@ -42,6 +52,24 @@ trait EntrustUserTrait
     }
 
     /**
+     * This should return a string with the roles in the following format:
+     * `[{"id":1,"name":"Admin"},{"id":2,"name":"User"}]`
+     *
+     * @param $cacheKey
+     * @return false|string
+     */
+    private function getCachedRoles($cacheKey)
+    {
+        return Cache::tags(Config::get('entrust.role_user_table'))->remember(
+            $cacheKey,
+            Config::get('cache.ttl'),
+            function () {
+                return $this->encodeRoles($this->roles()->get());
+            }
+        );
+    }
+
+    /**
      * Big block of caching functionality.
      *
      * @return mixed Roles
@@ -51,11 +79,7 @@ trait EntrustUserTrait
         $userPrimaryKey = $this->primaryKey;
         $cacheKey = 'entrust_roles_for_user_'.$this->$userPrimaryKey;
         if(Cache::getStore() instanceof TaggableStore) {
-            return $this->decodeRoles(
-                Cache::tags(Config::get('entrust.role_user_table'))->remember($cacheKey, Config::get('cache.ttl'), function () {
-                    return $this->encodeRoles($this->roles()->get());
-                })
-            );
+            return $this->decodeRoles($this->getCachedRoles($cacheKey));
         }
         else return $this->roles()->get();
     }

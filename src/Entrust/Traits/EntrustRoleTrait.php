@@ -16,18 +16,32 @@ use Zizaco\Entrust\EntrustPermission;
 
 trait EntrustRoleTrait
 {
+    /**
+     * Return the identifier of the Role
+     *
+     * @return mixed
+     */
     public function getIdentifier()
     {
         $rolePrimaryKey = $this->primaryKey;
         return $this->$rolePrimaryKey;
     }
 
+    /**
+     * Set the identifier of the Role
+     *
+     * @param $identifier
+     */
     public function setIdentifier($identifier)
     {
         $rolePrimaryKey = $this->primaryKey;
         $this->$rolePrimaryKey = $identifier;
     }
 
+    /**
+     * @param Collection $permissionsCollection
+     * @return false|string
+     */
     private function encodePermissions(Collection $permissionsCollection)
     {
         return json_encode($permissionsCollection->map(function ($item) {
@@ -37,6 +51,12 @@ trait EntrustRoleTrait
         }));
     }
 
+    /**
+     * Decode the permissions from a string
+     *
+     * @param $string
+     * @return Collection
+     */
     private function decodePermissions($string)
     {
         $permissionsAsArray = json_decode($string, true);
@@ -50,17 +70,31 @@ trait EntrustRoleTrait
         return $permissions;
     }
 
+    /**
+     * This should return a string with the permissions in the following format:
+     * `[{"name":"permission1"},{"name":"permission2"}]`
+     *
+     * @param $cacheKey
+     * @return false|string
+     */
+    private function getCachedPermissions($cacheKey)
+    {
+        return Cache::tags(Config::get('entrust.permission_role_table'))->remember(
+            $cacheKey,
+            Config::get('cache.ttl', 60),
+            function () {
+                return $this->encodePermissions($this->perms()->get());
+            }
+        );
+    }
+
     //Big block of caching functionality.
     public function cachedPermissions()
     {
         $rolePrimaryKey = $this->primaryKey;
         $cacheKey = 'entrust_permissions_for_role_' . $this->$rolePrimaryKey;
         if (Cache::getStore() instanceof TaggableStore) {
-            return $this->decodePermissions(
-                Cache::tags(Config::get('entrust.permission_role_table'))->remember($cacheKey, Config::get('cache.ttl', 60), function () {
-                    return $this->encodePermissions($this->perms()->get());
-                })
-            );
+            return $this->decodePermissions($this->getCachedPermissions($cacheKey));
         } else return $this->perms()->get();
     }
 
