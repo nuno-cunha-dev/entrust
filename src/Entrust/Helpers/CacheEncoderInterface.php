@@ -7,8 +7,7 @@ use Illuminate\Database\Eloquent\Collection;
 interface CacheEncoderInterface
 {
     /**
-     * This should return a string of the collection in the following format:
-     * `[{"id":1,"name":"Admin"},{"id":2,"name":"User"}]`
+     * Encode a collection of models to a string.
      *
      * @param Collection $collection
      * @return false|string

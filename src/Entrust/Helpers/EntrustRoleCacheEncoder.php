@@ -8,6 +8,9 @@ use Zizaco\Entrust\EntrustRole;
 class EntrustRoleCacheEncoder implements CacheEncoderInterface
 {
     /**
+     * This should return a string of the collection in the following format:
+     * `[{"id":1,"name":"Admin"},{"id":2,"name":"User"}]`
+     *
      * {@inheritDoc}
      */
     public static function encode(Collection $collection)
