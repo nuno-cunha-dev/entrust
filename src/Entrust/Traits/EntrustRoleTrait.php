@@ -42,7 +42,7 @@ trait EntrustRoleTrait
      * @param $cacheKey
      * @return Collection
      */
-    private function getCachedPermissions($cacheKey)
+    protected function getCachedPermissions($cacheKey)
     {
         return EntrustPermissionCacheEncoder::decode(
             Cache::tags(Config::get('entrust.permission_role_table'))->remember(
