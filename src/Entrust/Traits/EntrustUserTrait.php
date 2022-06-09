@@ -9,12 +9,31 @@
  */
 
 use Illuminate\Cache\TaggableStore;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use InvalidArgumentException;
+use Zizaco\Entrust\Helpers\EntrustRoleCacheEncoder;
 
 trait EntrustUserTrait
 {
+    /**
+     * @param $cacheKey
+     * @return Collection
+     */
+    protected function getCachedRoles($cacheKey)
+    {
+        return EntrustRoleCacheEncoder::decode(
+            Cache::tags(Config::get('entrust.role_user_table'))->remember(
+                $cacheKey,
+                Config::get('cache.ttl'),
+                function () {
+                    return EntrustRoleCacheEncoder::encode($this->roles()->get());
+                }
+            )
+        );
+    }
+
     /**
      * Big block of caching functionality.
      *
@@ -25,9 +44,7 @@ trait EntrustUserTrait
         $userPrimaryKey = $this->primaryKey;
         $cacheKey = 'entrust_roles_for_user_'.$this->$userPrimaryKey;
         if(Cache::getStore() instanceof TaggableStore) {
-            return Cache::tags(Config::get('entrust.role_user_table'))->remember($cacheKey, Config::get('cache.ttl'), function () {
-                return $this->roles()->get();
-            });
+            return $this->getCachedRoles($cacheKey);
         }
         else return $this->roles()->get();
     }
@@ -107,7 +124,6 @@ trait EntrustUserTrait
      */
     public function hasRole($name, $requireAll = false)
     {
-        var_dump('hasRole'); die();
         if (is_array($name)) {
             foreach ($name as $roleName) {
                 $hasRole = $this->hasRole($roleName);
