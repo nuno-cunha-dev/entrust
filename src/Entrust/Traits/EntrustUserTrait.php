@@ -13,59 +13,24 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use InvalidArgumentException;
-use Zizaco\Entrust\EntrustRole;
+use Zizaco\Entrust\Helpers\EntrustRoleCacheEncoder;
 
 trait EntrustUserTrait
 {
     /**
-     * @param Collection $rolesCollection
-     * @return false|string
-     */
-    private function encodeRoles(Collection $rolesCollection)
-    {
-        return json_encode($rolesCollection->map(function ($item) {
-            return [
-                $item->primaryKey => $item->getIdentifier(),
-                'name' => $item->name
-            ];
-        }));
-    }
-
-    /**
-     * Decode roles from a string
-     *
-     * @param  string $string
+     * @param $cacheKey
      * @return Collection
      */
-    private function decodeRoles($string)
+    protected function getCachedRoles($cacheKey)
     {
-        $rolesAsArray = json_decode($string, true);
-        $roles = new Collection();
-        foreach ($rolesAsArray as $roleAsArray) {
-            $role = new EntrustRole();
-            $role->setIdentifier($roleAsArray[$role->primaryKey]);
-            $role->name = $roleAsArray['name'];
-            $roles[] = $role;
-        }
-
-        return $roles;
-    }
-
-    /**
-     * This should return a string with the roles in the following format:
-     * `[{"id":1,"name":"Admin"},{"id":2,"name":"User"}]`
-     *
-     * @param $cacheKey
-     * @return false|string
-     */
-    private function getCachedRoles($cacheKey)
-    {
-        return Cache::tags(Config::get('entrust.role_user_table'))->remember(
-            $cacheKey,
-            Config::get('cache.ttl'),
-            function () {
-                return $this->encodeRoles($this->roles()->get());
-            }
+        return EntrustRoleCacheEncoder::decode(
+            Cache::tags(Config::get('entrust.role_user_table'))->remember(
+                $cacheKey,
+                Config::get('cache.ttl'),
+                function () {
+                    return EntrustRoleCacheEncoder::encode($this->roles()->get());
+                }
+            )
         );
     }
 
@@ -79,7 +44,7 @@ trait EntrustUserTrait
         $userPrimaryKey = $this->primaryKey;
         $cacheKey = 'entrust_roles_for_user_'.$this->$userPrimaryKey;
         if(Cache::getStore() instanceof TaggableStore) {
-            return $this->decodeRoles($this->getCachedRoles($cacheKey));
+            return $this->getCachedRoles($cacheKey);
         }
         else return $this->roles()->get();
     }
